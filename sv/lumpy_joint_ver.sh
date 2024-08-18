@@ -1,23 +1,23 @@
 BED=/mira05/analysis/hamanaka/resource/smoove/exclude.cnvnator_100bp.GRCh38.20170403.bed
 REF=/betelgeuse07/analysis/hamanaka/resource/resources_broad_hg38_v0_Homo_sapiens_assembly38
 INPUT=/betelgeuse07/analysis/hamanaka/wgs_sv/lumpy
-#SMOOVE="docker run --rm -v $INPUT:/data -it brentp/smoove smoove"
 SMOOVE="docker run --rm -v $INPUT:/data brentp/smoove smoove"
 BEDFILE=exclude.cnvnator_100bp.GRCh38.20170403.bed
 REFFILE=resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta
 
 
-#0. copy files
-cp $BED       ./ 
-cp ${REF}.*   ./ 
-
-
-#1. For each sample, call genotypes:
-less ../../bam/cram1336.list|while read CRAM; do
+#1. genotype each sample
+cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
+  DIR=$(dirname $CRAM)
+  cd $DIR
+  cp $BED      .
+  cp ${REF}.*  .
+  SMOOVE="docker run --rm -v $DIR:/data brentp/smoove smoove"
   SAMPLE=`echo $CRAM|awk -F"/" '{print $NF}'|cut -d"." -f1`
+  echo $SMOOVE
   echo $SAMPLE
   echo $CRAM
-  
+
   $SMOOVE call \
     --outdir /data/results-smoove/ \
     --exclude /data/$BEDFILE \
@@ -25,10 +25,19 @@ less ../../bam/cram1336.list|while read CRAM; do
     --fasta /data/$REFFILE \
     -p 1 \
     --genotype /data/$SAMPLE.cram \
-    > log.lumpy.step1.$SAMPLE.txt 2>&1
-  
-  rm $SAMPLE.cram
-  rm $SAMPLE.cram.crai
+    > /betelgeuse07/analysis/hamanaka/wgs_sv/lumpy/log.lumpy.step1.$SAMPLE.txt 2>&1
+
+  rm exclude.cnvnator_100bp.GRCh38.20170403.bed
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.dict
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.alt
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.amb
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.ann
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.bwt
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.pac
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.64.sa
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.fai
+  rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.index
   rm results-smoove/$SAMPLE.split.bam.orig.bam
   rm results-smoove/$SAMPLE.split.bam
   rm results-smoove/$SAMPLE.split.bam.bai
@@ -41,19 +50,11 @@ done
 
 
 #2. Get the union of sites across all samples --> merged.sites.vcf.gz
-# see lumpy_joint_step2.sh 
-$SMOOVE merge \
-  --name merged \
-  -f /data/$REFFILE \
-  --outdir /data/ \
-  /data/results-smoove/DA0000002897-smoove.genotyped.vcf.gz \
-  /data/results-smoove/DA0000002898-smoove.genotyped.vcf.gz \
-  /data/results-smoove/DA0000002899-smoove.genotyped.vcf.gz \
-  etc...
+bash ./lumpy_joint_step2.sh 
 
 
-#3. genotype each sample at those sites
-less /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
+#3. genotype each sample at all merged sites
+cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
   DIR=$(dirname $CRAM)
   cd $DIR
   cp /betelgeuse07/analysis/hamanaka/wgs_sv/lumpy/merged.sites.vcf.gz .
@@ -87,14 +88,7 @@ done
 
 
 #4. paste all the single sample VCFs with the same number of variants to get a single, squared, joint-called file.
-# see lumpy_joint_step4.sh 
-$SMOOVE paste \
-  --name merged \
-  --outdir /data/ \
-  /data/results-genotyped/DA0000002897-joint-smoove.genotyped.vcf.gz \
-  /data/results-genotyped/DA0000002898-joint-smoove.genotyped.vcf.gz \
-  /data/results-genotyped/DA0000002899-joint-smoove.genotyped.vcf.gz \
-  etc...
+bash ./lumpy_joint_step4.sh 
 
 
 #5. add SUPP & IDLIST
@@ -141,7 +135,7 @@ cat $PEDREFORMAT | while read LINE;do
   ##exclude_gnomadsv_only      tmp3.vcf > tmp4.vcf
   #mv tmp3.vcf tmp4.vcf
   filter_by_supp          tmp4.vcf 50 > tmp5.vcf
-  $ANNOTSV/bin/AnnotSV -genomeBuild GRCh38 -SVinputFile tmp5.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 #-promoterSize 2000 -REselect1 0 -REselect2 1
+  $ANNOTSV/bin/AnnotSV -genomeBuild GRCh38 -SVinputFile tmp5.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 
   AnnotsvFile=`ls 2023*_AnnotSV/annotsv.DA0*.tsv|grep -v unanno`
   python /antares01/analysis/hamanaka/function/annotsv_filter.py -annotsv_file $AnnotsvFile -sample $Proband -control $CONTROL
   cd ..
