@@ -1,14 +1,13 @@
-## bedtools coverage
-##BEDTOOLS=/usr/local/genome/bedtools2-2.29.0/bin/bedtools
-#BEDTOOLS=/betelgeuse05/system/bio/src/miniconda3/miniconda/envs/trtools-3.0.2/bin/bedtools
-#
-#less /betelgeuse07/analysis/ncgm/PathCram__ncgm.txt | while read CRAMPATH; do
-#  CRAM=`basename $CRAMPATH`
-#  $BEDTOOLS coverage -a chrAll_10kb_bin.bed -b $CRAMPATH -counts -sorted > $CRAM.bedgraph
-#done &
+# step 1: make bedgraph of each sample
+BEDTOOLS=/usr/local/genome/bedtools2-2.29.0/bin/bedtools
 
-# merge
-BEDTOOLS=/betelgeuse05/system/bio/src/miniconda3/miniconda/envs/trtools-3.0.2/bin/bedtools
+cat /betelgeuse07/analysis/ncgm/PathCram__ncgm.txt | while read CRAMPATH; do
+  CRAM=`basename $CRAMPATH`
+  $BEDTOOLS coverage -a chrAll_10kb_bin.bed -b $CRAMPATH -counts -sorted > $CRAM.bedgraph
+done 
+
+
+# step 2: merge
 $BEDTOOLS unionbedg -i \
   DA0000000348.cram.bedgraph \
   DA0000000349.cram.bedgraph \
@@ -1342,28 +1341,16 @@ $BEDTOOLS unionbedg -i \
   DA0000007263.cram.bedgraph \
   > merge.bedgraph
 
-#
-cat \
-  <(less bedgraph_col_order.male.txt|tr '\n' '\t'|sed 's/\t$/\n/') \
-  <(sed 's/chr//' < merge.male.bedgraph) | \
-sed 's/-//g' > merge3.male.bedgraph
 
-# 
-#less sample_region__genome_norm.list | grep -v -e '#' | while read LINE; do
-less sample_region__default_norm.list | grep -v -e '#' | while read LINE; do
+# step 3: plot
+cat sample_region__default_norm.list | while read LINE; do
   SAMPLE=`echo $LINE | awk '{print $1}'`
   CHR=`echo $LINE | awk '{print $2}'`
   REGION=`echo $LINE | awk '{print $2,$3,$4}'`
   REGION2=`echo $LINE | awk '{print $2"_"$3"_"$4}'`
   BEDGRAPH=`echo $LINE | awk '{print $6}'`
-  echo $SAMPLE
-  echo $CHR
-  echo $REGION
-  echo $REGION2
-  echo $BEDGRAPH
-  #/usr/local/bio/src/CNView-20180109/CNView.R \
-  #CHR='specific_region'
-  ./CNView.R \
+  
+  ./CNView_edited.R \
     $REGION \
     $SAMPLE \
     $BEDGRAPH \
@@ -1371,15 +1358,5 @@ less sample_region__default_norm.list | grep -v -e '#' | while read LINE; do
     -u -G --nolegend --window 0 \
     --highlight cnview_highlight.txt 
     #--normDist genome \
-    
-    #-i NULL  \
 done
 
-#/usr/local/bio/src/CNView-20180109/CNView.R \
-./CNView.R \
-  2 234000000 242190000 \
-  DA0000000448 \
-  merge3.bedgraph \
-  -u -G \
-  --window 0 \
-  DA0000000448.2.highlight.pdf 

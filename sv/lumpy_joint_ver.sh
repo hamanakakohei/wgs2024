@@ -131,9 +131,6 @@ cat $PEDREFORMAT | while read LINE;do
   select_sample0512 ../../merged.smoove.square.supp.vcf tmp.$Proband.txt > tmp.vcf
   exclude_no_carrier_variant tmp.vcf  > tmp2.vcf
   mv tmp2.vcf tmp4.vcf
-  #exclude_too_large_cnv      tmp2.vcf > tmp3.vcf
-  ##exclude_gnomadsv_only      tmp3.vcf > tmp4.vcf
-  #mv tmp3.vcf tmp4.vcf
   filter_by_supp          tmp4.vcf 50 > tmp5.vcf
   $ANNOTSV/bin/AnnotSV -genomeBuild GRCh38 -SVinputFile tmp5.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 
   AnnotsvFile=`ls 2023*_AnnotSV/annotsv.DA0*.tsv|grep -v unanno`

@@ -7,6 +7,7 @@ MEIREF=/mira05/analysis/hamanaka/resource/mei_list.hg38.txt
 export PATH=$PATH:/usr/local/genome/bowtie2-2.3.3.1/bin
 SKIPCHR=/mira05/analysis/hamanaka/wgs_sv2/SkipChr.txt
 
+
 # MELT indiv
 $MELT IndivAnalysis \
   -w aaa \
@@ -15,11 +16,13 @@ $MELT IndivAnalysis \
   -t $MEIREF \
   -b $SKIPCHR > log.melt.indiv.txt 2>&1
 
+
 # link files
 cd group_step
 less ../sample1340.list|while read SAMPLE; do
-  bash ss_group_step_link.sh $SAMPLE
+  bash group_step_link.sh $SAMPLE
 done
+
 
 # MELT group
 $MELT GroupAnalysis \
@@ -28,6 +31,7 @@ $MELT GroupAnalysis \
   -t $MEIREF \
   -h $REF__gtexhg38 \
   -n $MELTGENEBED > log.melt.group.txt 2>&1
+
 
 # MELT genotype
 less bam1336.list|while read BAM; do
@@ -39,11 +43,6 @@ less bam1336.list|while read BAM; do
     -p group_step 
 done > log.melt.genotype.txt 2>&1
 
-# MELT genotype qsub ver.
-less bam1336.list|grep -e 7144 -e 7146|while read BAM; do
-  qsub ./qsub__melt_genotype.sh $BAM
-  sleep 2s
-done
 
 # MELT MakeVCF
 $MELT MakeVCF \
@@ -53,6 +52,7 @@ $MELT MakeVCF \
   -w make_vcf_step \
   -p group_step > log.melt.make_vcf.txt 2>&1
 
+
 # cat vcfs
 cat make_vcf_step/ALU.final_comp.vcf \
   <(awk '$1!~/^#/' make_vcf_step/HERVK.final_comp.vcf) \ 
@@ -60,11 +60,13 @@ cat make_vcf_step/ALU.final_comp.vcf \
   <(awk '$1!~/^#/' make_vcf_step/SVA.final_comp.vcf  ) \ 
   > all.final_comp.vcf
 
+
 # sort vcf
 cat \
   <(awk '$1 ~/^#/' all.final_comp.vcf) \
   <(awk '$1!~/^#/' all.final_comp.vcf|sort -k1,1 -k2,2n) \
   > all.final_comp.sort.vcf
+
 
 # add SUPP & IDLIST
 awk -F"\t" 'BEGIN{OFS="\t"}$1 ~ /^##/{
@@ -89,36 +91,24 @@ awk -F"\t" 'BEGIN{OFS="\t"}$1 ~ /^##/{
 }' all.final_comp.sort.vcf > all.final_comp.sort.supp.vcf 
 
 
-# exclude bad samples
+# annotate
 source /usr/local/genome/python3-venv/env.sh
 source /antares01/analysis/hamanaka/function/VcfFunctions.sh
 export ANNOTSV=/usr/local/bio/src/AnnotSV
 export PATH=/usr/local/genome/bedtools2-2.29.0/bin:$PATH
 export PATH=/usr/local/genome/bcftools-1.8/bin:$PATH
-#PEDREFORMAT=/betelgeuse07/analysis/hamanaka/wgs/sample1211reformat.plus40trio.ped
-#CONTROL=/betelgeuse07/analysis/hamanaka/wgs/ncgmid__unaffected844.txt
-PEDREFORMAT=/mira05/analysis/hamanaka/tmp_melt/sample1211reformat.plus40trio.ped
-CONTROL=/mira05/analysis/hamanaka/tmp_melt/ncgmid__unaffected844.txt
-less $PEDREFORMAT | tail -n+3 | while read LINE;do
+PEDREFORMAT=/betelgeuse07/analysis/hamanaka/wgs/sample1211reformat.plus40trio.ped
+CONTROL=/betelgeuse07/analysis/hamanaka/wgs/ncgmid__unaffected844.txt
+cat $PEDREFORMAT | while read LINE;do
   Proband=`echo $LINE|awk '{print $2}'`
-  #mkdir $Proband
-  cd ${Proband}family
-  #echo $LINE|awk '{for(i=2;i<=NF;i++)print $i}END{print "gnomad"}' > tmp.$Proband.txt
-  #select_sample0512 ../all.final_comp.sort.supp.vcf tmp.$Proband.txt > tmp.vcf
-  #excludae_no_carrier_variant tmp.vcf > tmp2.vcf
-  #exclude_too_large_cnv tmp2.vcf > tmp3.vcf
-  ##exclude_gnomadsv_only tmp3.vcf > tmp4.vcf
-  mv tmp3.vcf tmp4.vcf
+  mkdir $Proband
+  echo $LINE|awk '{for(i=2;i<=NF;i++)print $i}END{print "gnomad"}' > tmp.$Proband.txt
+  select_sample0512 ../all.final_comp.sort.supp.vcf tmp.$Proband.txt > tmp.vcf
+  excludae_no_carrier_variant tmp.vcf > tmp2.vcf
+  mv tmp2.vcf tmp4.vcf
   filter_by_supp tmp4.vcf 50     > tmp5.vcf
   $ANNOTSV/bin/AnnotSV -genomeBuild GRCh38 -SVinputFile tmp5.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 #-promoterSize 2000 -REselect1 0 -REselect2 1
   AnnotsvFile=`ls 2023*_AnnotSV/annotsv.DA0*.tsv|grep -v unanno`
   python /antares01/analysis/hamanaka/function/annotsv_filter.py -annotsv_file $AnnotsvFile -sample $Proband -control $CONTROL
   cd ..
 done
-
-
-
-## divide vcf into each sample
-#source /antares01/analysis/hamanaka/function/VcfFunctions.sh
-#JointVcf_to_EachIndiv all.final_comp.sort.vcf
-
