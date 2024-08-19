@@ -1,12 +1,3 @@
-SAMTOOLS=/usr/local/genome/samtools-1.9/bin/samtools
-REF=/betelgeuse07/analysis/ncgm/igv/Homo_sapiens.GRCh38.dna_sm.primary_assembly_fix.fa
-REGION=chr17:7385000-8385000
-#BAM=/betelgeuse07/analysis/fujita/gridion/ONT_adp_218/ONT_adp_218_5khz_5mc_sup_v14.sorted.bam
-BAM=/betelgeuse07/analysis/fujita/gridion/ONT_adp_219/ONT_adp_219_5khz_5mc_sup_v14.sorted.bam
-#OUT=/betelgeuse07/analysis/hamanaka/chd3/ONT_adp_218_5khz_5mc_sup_v14.sorted.oneRegion.bam
-OUT=/betelgeuse07/analysis/hamanaka/chd3/ONT_adp_219_5khz_5mc_sup_v14.sorted.oneRegion.bam
-
-$SAMTOOLS view -T $REF -b $BAM $REGION > $OUT 
 
 
 
