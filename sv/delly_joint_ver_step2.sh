@@ -1,4 +1,4 @@
-DELLY=/usr/local/genome/delly-0.8.3/delly 
+DELLY=delly 
 
 # step 2: Merge SV sites into a unified site list
 $DELLY merge -o tmp.sites.sv.bcf \

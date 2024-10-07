@@ -1,4 +1,4 @@
-# denovo file wo kireinisuru
+# filter using depth, allele ratio, etc.
 import pandas as pd
 DENOVO = 'denovoqc.anno.all.txt'
 OUT = 'denovoqc.anno.all.filtered.txt'
@@ -33,12 +33,11 @@ dt.\
   #query('gt_gt    == "0/1" or gt_gt == "1/0" or gt_gt == "1/1"').\
 
 
-# each family
+# split into each family
 DENOVOALL1=denovoqc.anno.all.txt
 DENOVOALL2=denovoqc.anno.all.filtered.txt
 
-PED=/betelgeuse07/analysis/hamanaka/wgs/sample1211.plus40trio.ped
-less $PED | awk '$NF==2{print $2}' | grep -e 00603 -e 00640 |  while read PATIENT; do
+awk '$NF==2{print $2}' $PED_FILE |  while read PATIENT; do
   awk -v PATIENT="${PATIENT}" 'NR==1 || $3==PATIENT' $DENOVOALL1 > denovoqc.anno.all.$PATIENT.txt
   awk -v PATIENT="${PATIENT}" 'NR==1 || $3==PATIENT' $DENOVOALL2 > denovoqc.anno.all.filtered.$PATIENT.txt
 done

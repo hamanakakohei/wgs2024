@@ -1,25 +1,64 @@
 import pandas as pd
 import copy
 
-AR_ANNO = '/betelgeuse07/analysis/hamanaka/wgs_40/ar_anno.txt'
-#AR_ANNO = '/betelgeuse07/analysis/hamanaka/wgs/ar_anno.txt'
+
+# 0. functions
+def add_utr_anno(exonic_func, varid, utr_varid_list):
+  if varid in utr_varid_list:
+    exonic_func = 'uorf_or_polya; ' + exonic_func 
+  #
+  return exonic_func
+
+def judge_inhe(gt_pt,gt_fa,gt_mo):
+  if   gt_pt=='1/1' and gt_fa=='0/1' and gt_mo=='0/1':
+    return 'homo'
+  elif gt_pt=='1/1' and gt_fa=='0/1' and gt_mo=='0/0':
+    return 'fa_upd_or_mo_cnv'
+  elif gt_pt=='1/1' and gt_fa=='0/0' and gt_mo=='0/1':
+    return 'mo_upd_or_fa_cnv'
+  elif gt_pt=='1/1':
+    return 'homo'
+  elif gt_pt=='0/1' and gt_fa=='0/1' and gt_mo=='0/0':
+    return 'fa'
+  elif gt_pt=='0/1' and gt_fa=='0/0' and gt_mo=='0/1':
+    return 'mo'
+  elif gt_pt=='0/1':
+    return 'het'
+  else:
+    return 'others'
+
+def judge_ar(df):
+  inhes = list(df['inhe'])
+  if 'homo' in inhes or ('fa' in inhes and 'mo' in inhes):
+    return 'ok'
+  elif len([i for i in inhes if i=='het'])>1:
+    return 'ok'
+  elif 'fa_upd_or_mo_cnv' in inhes or 'mo_upd_or_fa_cnv' in inhes:
+    return 'ok'
+  elif ('fa' in inhes or 'mo' in inhes) and 'het' in inhes:
+    return 'ok'
+  else:
+    return 'no'
+
+
+# 1. data prep
+AR_ANNO = 'ar_anno.txt'
 TOOLS = ['manta', 'canvas', 'lumpy', 'melt', 'cnvnator', 'delly']
-TRIO = '/betelgeuse07/analysis/hamanaka/wgs/sample1211.plus40trio.txt'
-DDD = '/betelgeuse04/analysis/hamanaka/resource/DDG2P_20_3_2023.edit.tsv'
-OMIM = '/betelgeuse07/analysis/hamanaka/resource/genemap2.edit.txt'
+TRIO = 'sample1211.plus40trio.txt'
+DDD = 'DDG2P_20_3_2023.edit.tsv'
+OMIM = 'genemap2.edit.txt'
 UTR3 = 'varid__3utr.ncgm.txt'
 UTR5 = 'varid__GeneUtrannotator.txt'
 
 
 ar = pd.read_table(AR_ANNO, low_memory = False).rename({'sample': 'proband'}, axis = 1)
 ar['gts'] = ar['gts'].map(lambda x: x.replace('1/0', '0/1', 10))
-#SAMPLES = list(set(ar['proband']))
 ddd = pd.read_table(DDD)
 omim = pd.read_table(OMIM, names = ['Gene.refGene', 'omim'])
 utr3 = [i.replace('-', '_') for i in list(pd.read_table(UTR3, names = ['varid'])['varid'])]
 utr5 = [i.replace('-', '_') for i in list(pd.read_table(UTR5, names = ['varid'])['varid'])]
 
-trio = pd.read_table(TRIO).tail(40)
+trio = pd.read_table(TRIO)
 trio_probands = list(trio['pt'])
 
 interest_cols1 = [
@@ -45,12 +84,11 @@ interest_cols2 = [
 'AllSUPP', 
 'gnomadSV_AF'] 
 
-# trio_probands.remove('DA0000000603')
 
+# 2. split into each sample
 for SAMPLE in trio_probands:
   print(SAMPLE)
   out = 'ar_anno.plus_sv.' + SAMPLE + '.txt'
-  #out = 'ar_anno.plus_exonic_sv.' + SAMPLE + '.txt'
   # prep snv
   ar_one_fam = ar.query('proband == @SAMPLE')
   membs = ar_one_fam.membs.iloc[0].split(';')
@@ -59,7 +97,7 @@ for SAMPLE in trio_probands:
     ar_one_fam[memb] = ar_one_fam['gts'].map(lambda x: x.split(';')[i])
   # prep sv
   for TOOL in TOOLS:
-    ANNOTSV = '/betelgeuse07/analysis/hamanaka/wgs_sv/' + TOOL + '/annotsv/' + SAMPLE + '/annotsv.' + SAMPLE + '.final.MafFiltered.tsv'
+    ANNOTSV = TOOL + '/annotsv/' + SAMPLE + '/annotsv.' + SAMPLE + '.final.MafFiltered.tsv'
     dt = pd.read_table(ANNOTSV, low_memory=False)
     samples = [i for i in dt.columns if i.startswith('DA000')]
     dt['proband'] = SAMPLE
@@ -103,10 +141,6 @@ for SAMPLE in trio_probands:
   dt_sv = dt.query('Location == Location')
   dt_sv['Location1'] = dt_sv['Location'].map(lambda x: x.split('-')[0])
   dt_sv['Location2'] = dt_sv['Location'].map(lambda x: x.split('-')[1])
-  ## option: only for exonic SVs
-  #dt_sv1 = dt_sv.query('not Location.str.contains("intron")')
-  #dt_sv2 = dt_sv.query('Location1 != Location2')
-  #dt = pd.concat([dt_snv, dt_sv1, dt_sv2]).drop_duplicates()
   #
   gene_ar = dt.groupby(['Gene.refGene']).apply(lambda df: judge_ar(df)).reset_index().rename({0: 'ar'} ,axis=1)
   dt = pd.merge(dt, gene_ar)
@@ -124,43 +158,3 @@ for SAMPLE in trio_probands:
     #query('`Gene.refGene` in @two_allele_genes').\
 
 
-def add_utr_anno(exonic_func, varid, utr_varid_list):
-  if varid in utr_varid_list:
-    exonic_func = 'uorf_or_polya; ' + exonic_func 
-  #
-  return exonic_func
-
-def judge_inhe(gt_pt,gt_fa,gt_mo):
-  if   gt_pt=='1/1' and gt_fa=='0/1' and gt_mo=='0/1':
-    return 'homo'
-  elif gt_pt=='1/1' and gt_fa=='0/1' and gt_mo=='0/0':
-    return 'fa_upd_or_mo_cnv'
-  elif gt_pt=='1/1' and gt_fa=='0/0' and gt_mo=='0/1':
-    return 'mo_upd_or_fa_cnv'
-  elif gt_pt=='1/1':
-    return 'homo'
-  elif gt_pt=='0/1' and gt_fa=='0/1' and gt_mo=='0/0':
-    return 'fa'
-  elif gt_pt=='0/1' and gt_fa=='0/0' and gt_mo=='0/1':
-    return 'mo'
-  elif gt_pt=='0/1':
-    return 'het'
-  else:
-    return 'others'
-
-def judge_ar(df):
-  inhes = list(df['inhe'])
-  if 'homo' in inhes or ('fa' in inhes and 'mo' in inhes):
-    return 'ok'
-  elif len([i for i in inhes if i=='het'])>1:
-    return 'ok'
-  elif 'fa_upd_or_mo_cnv' in inhes or 'mo_upd_or_fa_cnv' in inhes:
-    return 'ok'
-  elif ('fa' in inhes or 'mo' in inhes) and 'het' in inhes:
-    return 'ok'
-  else:
-    return 'no'
-
-
-## only complete trios
-#SAMPLES = [SAMPLE for SAMPLE in SAMPLES if SAMPLE in complete_trio_probands]

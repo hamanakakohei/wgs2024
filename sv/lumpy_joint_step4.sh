@@ -1,4 +1,3 @@
-INPUT=/betelgeuse07/analysis/hamanaka/wgs_sv/lumpy
 SMOOVE="docker run --rm -v $INPUT:/data brentp/smoove smoove"
 
 $SMOOVE paste \
@@ -1337,7 +1336,3 @@ $SMOOVE paste \
   /data/results-genotyped/DA0000007261-joint-smoove.genotyped.vcf.gz \
   /data/results-genotyped/DA0000007262-joint-smoove.genotyped.vcf.gz \
   /data/results-genotyped/DA0000007263-joint-smoove.genotyped.vcf.gz 
-  
-  #/data/results-genotyped/DA0000002105-joint-smoove.genotyped.vcf.gz \
-  #/data/results-genotyped/DA0000002106-joint-smoove.genotyped.vcf.gz \
-  #/data/results-genotyped/DA0000002107-joint-smoove.genotyped.vcf.gz \

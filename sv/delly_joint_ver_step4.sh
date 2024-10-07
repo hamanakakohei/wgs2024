@@ -1,4 +1,4 @@
-BCFTOOLS=/usr/local/genome/bcftools-1.10/bin/bcftools
+BCFTOOLS=bcftools
 
 # step 2: Merge SV sites into a unified site list
 

@@ -1,5 +1,5 @@
-REF=~/resource/ref/GRCh38_full_analysis_set_plus_decoy_hla.fa
-GTF=~/resource/gencode.v44.annotation__CHR.sort.gtf.gz
+REF=GRCh38_full_analysis_set_plus_decoy_hla.fa
+GTF=gencode.v44.annotation__CHR.sort.gtf.gz
 INTERVAL=chr17:7883000-7889000
 RATIO=10,35,10,30,30 
 

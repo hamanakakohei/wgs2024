@@ -1,4 +1,3 @@
-INPUT=/betelgeuse07/analysis/hamanaka/wgs_sv/lumpy
 SMOOVE="docker run --rm -v $INPUT:/data brentp/smoove smoove"
 REFFILE=resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta
 

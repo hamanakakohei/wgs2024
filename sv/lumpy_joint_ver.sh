@@ -1,13 +1,12 @@
-BED=/mira05/analysis/hamanaka/resource/smoove/exclude.cnvnator_100bp.GRCh38.20170403.bed
-REF=/betelgeuse07/analysis/hamanaka/resource/resources_broad_hg38_v0_Homo_sapiens_assembly38
-INPUT=/betelgeuse07/analysis/hamanaka/wgs_sv/lumpy
+BED=smoove/exclude.cnvnator_100bp.GRCh38.20170403.bed
+REF=resources_broad_hg38_v0_Homo_sapiens_assembly38
 SMOOVE="docker run --rm -v $INPUT:/data brentp/smoove smoove"
 BEDFILE=exclude.cnvnator_100bp.GRCh38.20170403.bed
 REFFILE=resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta
 
 
-#1. genotype each sample
-cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
+# 1. genotype each sample
+while read CRAM; do
   DIR=$(dirname $CRAM)
   cd $DIR
   cp $BED      .
@@ -25,7 +24,7 @@ cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
     --fasta /data/$REFFILE \
     -p 1 \
     --genotype /data/$SAMPLE.cram \
-    > /betelgeuse07/analysis/hamanaka/wgs_sv/lumpy/log.lumpy.step1.$SAMPLE.txt 2>&1
+    > log.lumpy.step1.$SAMPLE.txt 2>&1
 
   rm exclude.cnvnator_100bp.GRCh38.20170403.bed
   rm resources_broad_hg38_v0_Homo_sapiens_assembly38.dict
@@ -46,7 +45,7 @@ cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
   rm results-smoove/$SAMPLE.disc.bam.bai
   rm results-smoove/$SAMPLE.histo
   rm results-smoove/$SAMPLE-lumpy-cmd.sh
-done
+done < cram.list
 
 
 #2. Get the union of sites across all samples --> merged.sites.vcf.gz
@@ -54,10 +53,10 @@ bash ./lumpy_joint_step2.sh
 
 
 #3. genotype each sample at all merged sites
-cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
+while read CRAM; do
   DIR=$(dirname $CRAM)
   cd $DIR
-  cp /betelgeuse07/analysis/hamanaka/wgs_sv/lumpy/merged.sites.vcf.gz .
+  cp ../merged.sites.vcf.gz .
   cp ${REF}.*  .
   SMOOVE="docker run --rm -v $DIR:/data brentp/smoove smoove"
   SAMPLE=`echo $CRAM|awk -F"/" '{print $NF}'|cut -d"." -f1`
@@ -84,7 +83,7 @@ cat /betelgeuse07/analysis/hamanaka/bam/cram1336.list | while read CRAM; do
   rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.fai
   rm resources_broad_hg38_v0_Homo_sapiens_assembly38.fasta.index
   sleep 1s
-done
+done < cram.list
 
 
 #4. paste all the single sample VCFs with the same number of variants to get a single, squared, joint-called file.
@@ -115,27 +114,21 @@ awk -F"\t" 'BEGIN{OFS="\t"}$1 ~ /^##/{
 
 
 #6. annotate
-source /usr/local/genome/python3-venv/env.sh
-source /antares01/analysis/hamanaka/function/VcfFunctions.sh
-export ANNOTSV=/usr/local/bio/src/AnnotSV
-export PATH=/usr/local/genome/bedtools2-2.29.0/bin:$PATH
-export PATH=/usr/local/genome/bcftools-1.8/bin:$PATH
-PEDREFORMAT=/betelgeuse07/analysis/hamanaka/wgs/sample1211reformat.plus40trio.ped
-CONTROL=/betelgeuse07/analysis/hamanaka/wgs/ncgmid__unaffected844.txt
+source python3-venv/env.sh
+source VcfFunctions.sh
 
-cat $PEDREFORMAT | while read LINE;do
+while read LINE;do
   Proband=`echo $LINE|awk '{print $2}'`
   mkdir $Proband
   cd ${Proband}
   echo $LINE|awk '{for(i=2;i<=NF;i++)print $i}END{print "gnomad"}' > tmp.$Proband.txt
-  select_sample0512 ../../merged.smoove.square.supp.vcf tmp.$Proband.txt > tmp.vcf
+  select_samples ../merged.smoove.square.supp.vcf tmp.$Proband.txt > tmp.vcf
   exclude_no_carrier_variant tmp.vcf  > tmp2.vcf
-  mv tmp2.vcf tmp4.vcf
-  filter_by_supp          tmp4.vcf 50 > tmp5.vcf
-  $ANNOTSV/bin/AnnotSV -genomeBuild GRCh38 -SVinputFile tmp5.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 
+  filter_by_supp          tmp2.vcf 50 > tmp3.vcf
+  AnnotSV -genomeBuild GRCh38 -SVinputFile tmp3.vcf -outputFile annotsv.$Proband.tsv -svtBEDcol 4 
   AnnotsvFile=`ls 2023*_AnnotSV/annotsv.DA0*.tsv|grep -v unanno`
-  python /antares01/analysis/hamanaka/function/annotsv_filter.py -annotsv_file $AnnotsvFile -sample $Proband -control $CONTROL
+  python annotsv_filter.py -annotsv_file $AnnotsvFile -sample $Proband -control $CONTROL
   cd ..
-done
+done < family_members.list
 
 

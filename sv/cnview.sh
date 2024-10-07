@@ -1,10 +1,10 @@
 # step 1: make bedgraph of each sample
-BEDTOOLS=/usr/local/genome/bedtools2-2.29.0/bin/bedtools
+BEDTOOLS=bedtools
 
-cat /betelgeuse07/analysis/ncgm/PathCram__ncgm.txt | while read CRAMPATH; do
+while read CRAMPATH; do
   CRAM=`basename $CRAMPATH`
   $BEDTOOLS coverage -a chrAll_10kb_bin.bed -b $CRAMPATH -counts -sorted > $CRAM.bedgraph
-done 
+done < cram.list
 
 
 # step 2: merge
@@ -1343,11 +1343,11 @@ $BEDTOOLS unionbedg -i \
 
 
 # step 3: plot
-cat sample_region__default_norm.list | while read LINE; do
-  SAMPLE=`echo $LINE | awk '{print $1}'`
-  CHR=`echo $LINE | awk '{print $2}'`
-  REGION=`echo $LINE | awk '{print $2,$3,$4}'`
-  REGION2=`echo $LINE | awk '{print $2"_"$3"_"$4}'`
+while read LINE; do
+  SAMPLE=`  echo $LINE | awk '{print $1}'`
+  CHR=`     echo $LINE | awk '{print $2}'`
+  REGION=`  echo $LINE | awk '{print $2,$3,$4}'`
+  REGION2=` echo $LINE | awk '{print $2"_"$3"_"$4}'`
   BEDGRAPH=`echo $LINE | awk '{print $6}'`
   
   ./CNView_edited.R \
@@ -1358,5 +1358,5 @@ cat sample_region__default_norm.list | while read LINE; do
     -u -G --nolegend --window 0 \
     --highlight cnview_highlight.txt 
     #--normDist genome \
-done
+done < sample_region.list
 
